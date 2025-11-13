@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Geo-tag Photo with what3words</title>
+    <title>Geo-tag Photo with Location</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -24,6 +24,13 @@
         .pulse-dot {
             animation: pulse-dot 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
         }
+        .mock-w3w {
+            background: linear-gradient(45deg, #4F46E5, #7E22CE);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body class="bg-gray-900 text-gray-200 flex items-center justify-center min-h-screen p-4">
@@ -31,8 +38,8 @@
     <div class="w-full max-w-lg mx-auto bg-gray-800 rounded-2xl shadow-2xl overflow-hidden">
         <div class="p-6">
             <header class="text-center mb-6">
-                <h1 class="text-2xl font-bold text-white">Geo-tag Photo</h1>
-                <p class="text-gray-400 text-sm">Capture a photo to get its what3words location.</p>
+                <h1 class="text-2xl font-bold text-white">Tokenopoly Geo-Tag</h1>
+                <p class="text-gray-400 text-sm">Capture photos for the W3W block challenge</p>
             </header>
             
             <main>
@@ -72,21 +79,27 @@
                         <h3 class="text-lg font-semibold text-white mb-2">Location Details</h3>
                         <div class="space-y-2 text-sm">
                             <p>
-                                <strong class="text-indigo-400">what3words:</strong>
-                                <span id="w3w" class="font-mono ml-2 p-1 bg-gray-900 rounded">///</span>
+                                <strong class="text-indigo-400">W3W Block:</strong>
+                                <span id="w3w" class="mock-w3w ml-2 p-1 bg-gray-900 rounded">///</span>
                             </p>
                             <p>
                                 <strong class="text-indigo-400">Coordinates:</strong>
                                 <span id="coords" class="font-mono ml-2 p-1 bg-gray-900 rounded">...</span>
                             </p>
+                            <p>
+                                <strong class="text-indigo-400">Block ID:</strong>
+                                <span id="blockId" class="font-mono ml-2 p-1 bg-gray-900 rounded">ATL-</span>
+                            </p>
                         </div>
-                        <div class="mt-4 text-xs text-gray-500">
-                             Note: Location data is not embedded in the image file.
+                        <div class="mt-4 p-3 bg-yellow-900/20 rounded-lg">
+                            <p class="text-xs text-yellow-300">
+                                📍 <strong>Tokenopoly Challenge:</strong> Use this location to create your viral TikTok reel!
+                            </p>
                         </div>
                     </div>
                     
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <a id="downloadButton" href="#" download="geotagged-photo.jpg" class="hidden w-full bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded-lg text-center transition focus:outline-none focus:ring-2 focus:ring-green-500/50">Download Photo</a>
+                        <a id="downloadButton" href="#" download="tokenopoly-photo.jpg" class="hidden w-full bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded-lg text-center transition focus:outline-none focus:ring-2 focus:ring-green-500/50">Download Photo</a>
                         <button id="resetButton" class="w-full bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg transition focus:outline-none focus:ring-2 focus:ring-gray-500/50">Take Another</button>
                     </div>
                 </div>
@@ -96,8 +109,6 @@
     </div>
 
     <script>
-        const W3W_API_KEY = '60QV63R3';
-
         const initialState = document.getElementById('initialState');
         const cameraState = document.getElementById('cameraState');
         const resultState = document.getElementById('resultState');
@@ -114,9 +125,18 @@
         const locationInfo = document.getElementById('locationInfo');
         const w3wElement = document.getElementById('w3w');
         const coordsElement = document.getElementById('coords');
+        const blockIdElement = document.getElementById('blockId');
         
         let stream = null;
         let currentPosition = null;
+
+        // Mock W3W words for demonstration
+        const mockW3WWords = [
+            'viral.tokemon.trend', 'atlanta.block.party', 'token.winner.champ',
+            'tiktok.boost.fame', 'influence.create.share', 'content.creator.zone',
+            'geotag.capture.win', 'challenge.accepted.go', 'block.battle.royale',
+            'metro.atl.spotlight', 'dcommerce.hub.local', 'stream.shop.engage'
+        ];
 
         function initialize() {
             takePhotoButton.addEventListener('click', startCamera);
@@ -139,7 +159,7 @@
                     cameraSpinner.style.display = 'none';
                 };
                 
-                // Get location in background but don't call API yet
+                // Get location in background
                 getCurrentLocation();
             } catch (err) {
                 console.error("Error accessing media devices.", err);
@@ -161,12 +181,12 @@
                 },
                 (error) => {
                     console.warn("Geolocation error:", error);
-                    // Don't show error to user yet - they might not take a photo
+                    // Continue without location - we'll use mock data
                 },
                 {
                     enableHighAccuracy: true,
                     timeout: 10000,
-                    maximumAge: 60000 // Cache location for 1 minute
+                    maximumAge: 60000
                 }
             );
         }
@@ -184,49 +204,57 @@
             resultState.classList.remove('hidden');
             stopCameraStream();
             
-            // Only call what3words API AFTER photo is captured
-            getLocationAndW3W();
+            // Generate location data without API calls
+            generateLocationData();
         }
 
-        async function getLocationAndW3W() {
-            if (W3W_API_KEY === 'YOUR_WHAT3WORDS_API_KEY_HERE' || W3W_API_KEY === '') {
-                updateStatus('API Key is missing.', 'error');
-                return;
-            }
+        function generateLocationData() {
+            updateStatus('Generating location data...', 'loading');
 
-            if (!currentPosition) {
-                updateStatus('Location not available. Please try again.', 'error');
-                return;
-            }
-
-            const { latitude, longitude } = currentPosition.coords;
-            coordsElement.textContent = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
-            updateStatus('Fetching what3words address...', 'loading');
-
-            try {
-                const response = await fetch(`https://api.what3words.com/v3/convert-to-3wa?coordinates=${latitude},${longitude}&key=${W3W_API_KEY}`);
-                
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    const errorMessage = errorData?.error?.message || `API Error ${response.status}`;
+            setTimeout(() => {
+                if (currentPosition) {
+                    const { latitude, longitude } = currentPosition.coords;
+                    coordsElement.textContent = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
                     
-                    if (response.status === 429) {
-                        throw new Error('API rate limit exceeded. Please try again in a moment.');
-                    } else if (response.status === 401) {
-                        throw new Error('Invalid API key. Please check your configuration.');
-                    } else {
-                        throw new Error(errorMessage);
-                    }
+                    // Generate mock W3W address based on coordinates
+                    const mockW3W = generateMockW3W(latitude, longitude);
+                    w3wElement.textContent = `///${mockW3W}`;
+                    
+                    // Generate block ID
+                    const blockId = generateBlockId(latitude, longitude);
+                    blockIdElement.textContent = blockId;
+                } else {
+                    // Use fallback mock data if no GPS available
+                    coordsElement.textContent = "33.74900, -84.38800"; // Atlanta center
+                    const randomW3W = mockW3WWords[Math.floor(Math.random() * mockW3WWords.length)];
+                    w3wElement.textContent = `///${randomW3W}`;
+                    blockIdElement.textContent = "ATL-" + Math.random().toString(36).substr(2, 6).toUpperCase();
                 }
                 
-                const data = await response.json();
-                w3wElement.textContent = data.words ? `///${data.words}` : 'Not found';
-                updateStatus('Location found!', 'success');
-            } catch (err) {
-                console.error("Error fetching what3words.", err);
-                w3wElement.textContent = 'Error';
-                updateStatus(err.message, 'error');
-            }
+                updateStatus('Location ready for Tokenopoly!', 'success');
+            }, 1500); // Simulate API delay
+        }
+
+        function generateMockW3W(lat, lon) {
+            // Create deterministic but fun W3W-like addresses based on coordinates
+            const latStr = Math.abs(lat).toFixed(3).replace('.', '');
+            const lonStr = Math.abs(lon).toFixed(3).replace('.', '');
+            
+            const words1 = ['viral', 'token', 'tiktok', 'atlanta', 'block', 'metro', 'creator', 'content'];
+            const words2 = ['monopoly', 'challenge', 'battle', 'spotlight', 'hub', 'zone', 'party', 'game'];
+            const words3 = ['win', 'trend', 'fame', 'boost', 'engage', 'share', 'create', 'capture'];
+            
+            const index1 = parseInt(latStr.substr(0, 2)) % words1.length;
+            const index2 = parseInt(lonStr.substr(0, 2)) % words2.length;
+            const index3 = (parseInt(latStr.substr(2, 2)) + parseInt(lonStr.substr(2, 2))) % words3.length;
+            
+            return `${words1[index1]}.${words2[index2]}.${words3[index3]}`;
+        }
+
+        function generateBlockId(lat, lon) {
+            const gridX = Math.floor((lon + 180) / 0.0009); // ~100m blocks
+            const gridY = Math.floor((lat + 90) / 0.0009);
+            return `ATL-${gridX.toString(36).substr(0, 3)}-${gridY.toString(36).substr(0, 3)}`.toUpperCase();
         }
         
         function updateStatus(message, type) {
@@ -269,6 +297,7 @@
             downloadButton.classList.add('hidden');
             w3wElement.textContent = '///';
             coordsElement.textContent = '...';
+            blockIdElement.textContent = 'ATL-';
             currentPosition = null;
         }
 
